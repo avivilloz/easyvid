@@ -1,4 +1,4 @@
-# PKG
+# Video Editor
 
 Python package for efficient video creation, manipulation, and animation using image sequences, audio, and subtitles.
 

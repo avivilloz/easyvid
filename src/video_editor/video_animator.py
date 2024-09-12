@@ -1,12 +1,14 @@
 import random
-from moviepy.editor import ImageClip, VideoClip
-from .animations import *
 from typing import List
+from moviepy.editor import ImageClip, VideoClip
 
-__all__ = ["auto_animate"]
+from .enums import Animation, EnterTransition, ExitTransition
+from .video_animations import *
+
+__all__ = ["AutoVideoClipsAnimator"]
 
 
-class AutoAnimator:
+class AutoVideoClipsAnimator:
     def __init__(
         self,
         clips: List[VideoClip],
@@ -89,7 +91,10 @@ class AutoAnimator:
 
     def add_animation(self, clip):
         final_clip = clip
-        duration = clip.duration
+
+        if not self.enter_transitions:
+            self.animation = Animation.NONE
+            return final_clip
 
         match self.animation:
             case Animation.ZOOM:
@@ -107,21 +112,21 @@ class AutoAnimator:
             case Animation.ZOOM:
                 final_clip = zoom_in_out(
                     clip=clip,
-                    duration=duration,
+                    duration=clip.duration,
                     factor=self.zoom_factor,
                     smoothness=self.zoom_smoothness,
                 )
             case Animation.ZOOMIN:
                 final_clip = zoom_in(
                     clip=clip,
-                    duration=duration,
+                    duration=clip.duration,
                     factor=self.zoom_factor,
                     smoothness=self.zoom_smoothness,
                 )
             case Animation.ZOOMOUT:
                 final_clip = zoom_out(
                     clip=clip,
-                    duration=duration,
+                    duration=clip.duration,
                     factor=self.zoom_factor,
                     smoothness=self.zoom_smoothness,
                 )
@@ -132,6 +137,10 @@ class AutoAnimator:
 
     def add_enter_transition(self, clip):
         final_clip = clip
+
+        if not self.enter_transitions:
+            self.enter_transition = EnterTransition.NONE
+            return final_clip
 
         match self.exit_transition:
             case ExitTransition.FADEOUT:
@@ -159,6 +168,10 @@ class AutoAnimator:
     def add_exit_transition(self, clip):
         final_clip = clip
 
+        if not self.exit_transitions:
+            self.exit_transition = ExitTransition.NONE
+            return final_clip
+
         transition = random.choice(self.exit_transitions)
 
         match transition:
@@ -175,29 +188,3 @@ class AutoAnimator:
         self.exit_transition = transition
 
         return final_clip
-
-
-def auto_animate(
-    clips: List[VideoClip],
-    last_animation: Animation = Animation.NONE,
-    only_transitions: bool = False,
-    transition_duration: float = 0.3,
-    zoom_factor: float = 1.4,
-    zoom_smoothness: float = 1.4,
-    exclude_exit_transitions: List[ExitTransition] = None,
-    exclude_enter_transitions: List[EnterTransition] = None,
-    exclude_animations: List[Animation] = None,
-):
-    return AutoAnimator(
-        clips=clips,
-        transition_duration=transition_duration,
-        animation=last_animation,
-        only_transitions=only_transitions,
-        enter_transition=EnterTransition.NONE,
-        exit_transition=ExitTransition.NONE,
-        zoom_factor=zoom_factor,
-        zoom_smoothness=zoom_smoothness,
-        exclude_exit_transitions=exclude_exit_transitions,
-        exclude_enter_transitions=exclude_enter_transitions,
-        exclude_animations=exclude_animations,
-    ).animate()

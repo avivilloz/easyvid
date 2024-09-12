@@ -1,51 +1,21 @@
 import random
+from scipy.ndimage import zoom as nd_zoom
 from moviepy.editor import CompositeVideoClip
 from moviepy.video.fx.all import resize
-from enum import Enum
+from .enums import Direction
 
 __all__ = [
-    "Animation",
-    "Direction",
-    "EnterTransition",
-    "ExitTransition",
     "crossfadein",
     "crossfadeout",
-    "ease_in_out",
     "get_first_frame",
     "get_last_frame",
     "merge_two_clips",
     "slide_in",
     "slide_out",
     "zoom_in",
-    "zoom_in_out",
     "zoom_out",
+    "zoom_in_out",
 ]
-
-
-class Direction(Enum):
-    LEFT = "left"
-    RIGHT = "right"
-    TOP = "top"
-    BOTTOM = "bottom"
-
-
-class EnterTransition(Enum):
-    NONE = "none"
-    FADEIN = "fadein"
-    SLIDEIN = "slidein"
-
-
-class ExitTransition(Enum):
-    NONE = "none"
-    FADEOUT = "fadeout"
-    SLIDEOUT = "slideout"
-
-
-class Animation(Enum):
-    NONE = "none"
-    ZOOM = "zoom"
-    ZOOMIN = "zoomin"
-    ZOOMOUT = "zoomout"
 
 
 def crossfadein(clip, duration):
@@ -60,6 +30,23 @@ def ease_in_out(t, smoothness=4):
     return t**smoothness / (t**smoothness + (1 - t) ** smoothness)
 
 
+def get_crop_func(clip, zoom_func):
+    def crop_func(get_frame, t):
+        frame = get_frame(t)
+        scale, x, y = zoom_func(t)
+
+        resized_frame = nd_zoom(frame, (scale, scale, 1), order=1)
+
+        crop_x1 = int((resized_frame.shape[1] - clip.w) / 2)
+        crop_y1 = int((resized_frame.shape[0] - clip.h) / 2)
+        crop_x2 = crop_x1 + clip.w
+        crop_y2 = crop_y1 + clip.h
+
+        return resized_frame[crop_y1:crop_y2, crop_x1:crop_x2]
+
+    return crop_func
+
+
 def zoom_in(clip, duration, factor=1.3, smoothness=4):
     def zoom(t):
         progress = ease_in_out(t=t / duration, smoothness=smoothness)
@@ -71,11 +58,7 @@ def zoom_in(clip, duration, factor=1.3, smoothness=4):
         return scale, x, y
 
     zoomed = clip.fx(resize, lambda t: zoom(t)[0])
-
-    def crop_func(get_frame, t):
-        frame = get_frame(t)
-        _, x, y = zoom(t)
-        return frame[int(y) : int(y + clip.h), int(x) : int(x + clip.w)]
+    crop_func = get_crop_func(clip=clip, zoom_func=zoom)
 
     return zoomed.fl(crop_func).set_duration(duration)
 
@@ -91,11 +74,7 @@ def zoom_out(clip, duration, factor=1.3, smoothness=4):
         return scale, x, y
 
     zoomed = clip.fx(resize, lambda t: zoom(t)[0])
-
-    def crop_func(get_frame, t):
-        frame = get_frame(t)
-        _, x, y = zoom(t)
-        return frame[int(y) : int(y + clip.h), int(x) : int(x + clip.w)]
+    crop_func = get_crop_func(clip=clip, zoom_func=zoom)
 
     return zoomed.fl(crop_func).set_duration(duration)
 
@@ -121,11 +100,7 @@ def zoom_in_out(clip, factor=1.3, duration=None, smoothness=4):
         return scale, x, y
 
     zoomed = clip.fx(resize, lambda t: zoom(t)[0])
-
-    def crop_func(get_frame, t):
-        frame = get_frame(t)
-        _, x, y = zoom(t)
-        return frame[int(y) : int(y + clip.h), int(x) : int(x + clip.w)]
+    crop_func = get_crop_func(clip=clip, zoom_func=zoom)
 
     return zoomed.fl(crop_func).set_duration(duration)
 

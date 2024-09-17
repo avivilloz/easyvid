@@ -1,34 +1,14 @@
-from typing import List
-from dataclasses import dataclass
+import re
 from moviepy.editor import TextClip
-
 from .enums import TextAnimation
 from .text_animations import animate_text_clip
 
 
-__all__ = ["SubtitleWord", "SubtitleLine", "get_subtitle_clips"]
-
-
-@dataclass
-class SubtitleWord:
-    text: str
-    start: float
-    end: float
-
-
-@dataclass
-class SubtitleLine:
-    words: List[SubtitleWord]
-    start: float
-    end: float
-
-    @property
-    def text(self) -> str:
-        return " ".join(word.text for word in self.words)
+__all__ = ["get_subtitle_clips"]
 
 
 def get_subtitle_clips(
-    subtitle_lines: List[SubtitleLine],
+    subtitles: list,
     screen_width: int,
     font_path: str,
     font_size: int,
@@ -44,7 +24,7 @@ def get_subtitle_clips(
     animation: TextAnimation = TextAnimation.NONE,
 ):
     subtitle_clips = []
-    for subtitle_line in subtitle_lines:
+    for subtitle_line in subtitles:
         subtitle_clips += get_subtitle_line_clips(
             subtitle_line=subtitle_line,
             screen_width=screen_width,
@@ -65,7 +45,7 @@ def get_subtitle_clips(
 
 
 def get_subtitle_line_clips(
-    subtitle_line: SubtitleLine,
+    subtitle_line: list,
     screen_width: int,
     font_path: str,
     font_size: int,
@@ -82,7 +62,7 @@ def get_subtitle_line_clips(
 ):
     def get_text_width(text: str):
         clip = TextClip(
-            txt=text,
+            txt=format_word(text),
             fontsize=font_size,
             font=font_path,
             color=color,
@@ -94,8 +74,8 @@ def get_subtitle_line_clips(
 
     def get_start_x_position():
         total_width = 0
-        for word in subtitle_line:
-            text_width = get_text_width(text=word.text)
+        for word in subtitle_line["words"]:
+            text_width = get_text_width(text=word["word"])
             total_width += text_width + spacing
         total_width -= spacing
         start_x_position = (screen_width - total_width) / 2
@@ -105,10 +85,10 @@ def get_subtitle_line_clips(
     x_position = current_x_position / screen_width
 
     clips = []
-    for word in subtitle_line.words:
+    for word in subtitle_line["words"]:
         clip = (
             TextClip(
-                txt=word.text,
+                txt=format_word(word["word"]),
                 fontsize=font_size,
                 font=font_path,
                 color=color,
@@ -116,8 +96,8 @@ def get_subtitle_line_clips(
                 stroke_width=stroke_width,
                 kerning=kerning,
             )
-            .set_start(word.start + offset_time)
-            .set_duration(word.end - word.start)
+            .set_start(word["start"] + offset_time)
+            .set_duration(word["end"] - word["start"])
         )
 
         clip = animate_text_clip(
@@ -131,8 +111,12 @@ def get_subtitle_line_clips(
 
         clips.append(clip)
 
-        text_width = get_text_width(text=word.text)
+        text_width = get_text_width(text=word["word"])
         current_x_position += text_width + spacing
         x_position = current_x_position / screen_width
 
     return clips
+
+
+def format_word(word: str) -> str:
+    return re.sub(r"[;,.]", "", word).upper().strip()
